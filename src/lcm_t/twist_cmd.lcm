@@ -1,0 +1,9 @@
+package exlcm;
+
+struct mot_cmd
+{
+    int64_t  timestamp;
+    double v_x;
+    double v_y;
+    double v_yaw;
+}

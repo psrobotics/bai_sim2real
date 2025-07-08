@@ -1,0 +1,74 @@
+# =================================================================
+# General
+# =================================================================
+
+# Operating System generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# IDE and editor configuration files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# =================================================================
+# C++ / CMake
+# =================================================================
+
+# Build directories
+build/
+cmake-build-*/
+[Bb]uild/
+[Cc]make-*
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.out
+*.app
+
+# =================================================================
+# Python / uv
+# =================================================================
+
+# Uv virtual environment folder
+.venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+/dist/
+/build/
+*.egg-info/
+.eggs/
+.egg-info/
+*.egg
+
+# = aiohttp session storage
+.aiohttp_sessions/

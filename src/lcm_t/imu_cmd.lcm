@@ -1,0 +1,9 @@
+package exlcm;
+
+struct imu_cmd
+{
+    int64_t  timestamp;
+    double   rpy[3];
+    double   gyro[3];
+    double   acc[3];
+}

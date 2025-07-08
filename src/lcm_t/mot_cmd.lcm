@@ -1,0 +1,17 @@
+package exlcm;
+
+struct mot_cmd
+{
+    int64_t  timestamp;
+    double q_tar[6];
+    double dq_tar[6];
+    double tau_tar[6];
+    
+    double q_rec[6];
+    double dq_rec[6];
+    double tau_rec[6];
+
+    double kp_tar;
+    double kd_tar;
+    bool is_enable;
+}
