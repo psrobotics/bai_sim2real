@@ -1,13 +1,9 @@
 package exlcm;
 
-struct mot_cmd
+struct mot_state
 {
     int64_t  timestamp;
     double q[6];
     double dq[6];
     double tau[6];
-    
-    double kp_tar;
-    double kd_tar;
-    byte is_enable;
 }

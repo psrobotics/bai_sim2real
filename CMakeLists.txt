@@ -73,7 +73,7 @@ add_executable(
     ${SOURCE_DIR}/mot_bridge/motor_group.cpp
 )
 target_include_directories(
-    imu_bridge
+    mot_bridge
     PRIVATE ${SOURCE_DIR}/mot_bridge
 )
 target_link_libraries(

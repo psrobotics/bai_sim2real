@@ -6,3 +6,4 @@ lcm-gen 1.5.1
 
 from .imu_cmd import imu_cmd as imu_cmd
 from .mot_cmd import mot_cmd as mot_cmd
+from .mot_state import mot_state as mot_state

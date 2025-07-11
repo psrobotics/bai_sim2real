@@ -7,13 +7,13 @@ DO NOT MODIFY BY HAND!!!!
 from io import BytesIO
 import struct
 
-class mot_cmd(object):
+class mot_state(object):
 
-    __slots__ = ["timestamp", "q", "dq", "tau", "kp_tar", "kd_tar", "is_enable"]
+    __slots__ = ["timestamp", "q", "dq", "tau"]
 
-    __typenames__ = ["int64_t", "double", "double", "double", "double", "double", "byte"]
+    __typenames__ = ["int64_t", "double", "double", "double"]
 
-    __dimensions__ = [None, [6], [6], [6], None, None, None]
+    __dimensions__ = [None, [6], [6], [6]]
 
     def __init__(self):
         self.timestamp = 0
@@ -24,16 +24,10 @@ class mot_cmd(object):
         """ LCM Type: double[6] """
         self.tau = [ 0.0 for dim0 in range(6) ]
         """ LCM Type: double[6] """
-        self.kp_tar = 0.0
-        """ LCM Type: double """
-        self.kd_tar = 0.0
-        """ LCM Type: double """
-        self.is_enable = 0
-        """ LCM Type: byte """
 
     def encode(self):
         buf = BytesIO()
-        buf.write(mot_cmd._get_packed_fingerprint())
+        buf.write(mot_state._get_packed_fingerprint())
         self._encode_one(buf)
         return buf.getvalue()
 
@@ -42,7 +36,6 @@ class mot_cmd(object):
         buf.write(struct.pack('>6d', *self.q[:6]))
         buf.write(struct.pack('>6d', *self.dq[:6]))
         buf.write(struct.pack('>6d', *self.tau[:6]))
-        buf.write(struct.pack(">ddB", self.kp_tar, self.kd_tar, self.is_enable))
 
     @staticmethod
     def decode(data: bytes):
@@ -50,35 +43,34 @@ class mot_cmd(object):
             buf = data
         else:
             buf = BytesIO(data)
-        if buf.read(8) != mot_cmd._get_packed_fingerprint():
+        if buf.read(8) != mot_state._get_packed_fingerprint():
             raise ValueError("Decode error")
-        return mot_cmd._decode_one(buf)
+        return mot_state._decode_one(buf)
 
     @staticmethod
     def _decode_one(buf):
-        self = mot_cmd()
+        self = mot_state()
         self.timestamp = struct.unpack(">q", buf.read(8))[0]
         self.q = struct.unpack('>6d', buf.read(48))
         self.dq = struct.unpack('>6d', buf.read(48))
         self.tau = struct.unpack('>6d', buf.read(48))
-        self.kp_tar, self.kd_tar, self.is_enable = struct.unpack(">ddB", buf.read(17))
         return self
 
     @staticmethod
     def _get_hash_recursive(parents):
-        if mot_cmd in parents: return 0
-        tmphash = (0x632adb995ec2d6db) & 0xffffffffffffffff
+        if mot_state in parents: return 0
+        tmphash = (0x8afab3dd98db18fe) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _packed_fingerprint = None
 
     @staticmethod
     def _get_packed_fingerprint():
-        if mot_cmd._packed_fingerprint is None:
-            mot_cmd._packed_fingerprint = struct.pack(">Q", mot_cmd._get_hash_recursive([]))
-        return mot_cmd._packed_fingerprint
+        if mot_state._packed_fingerprint is None:
+            mot_state._packed_fingerprint = struct.pack(">Q", mot_state._get_hash_recursive([]))
+        return mot_state._packed_fingerprint
 
     def get_hash(self):
         """Get the LCM hash of the struct"""
-        return struct.unpack(">Q", mot_cmd._get_packed_fingerprint())[0]
+        return struct.unpack(">Q", mot_state._get_packed_fingerprint())[0]
 
