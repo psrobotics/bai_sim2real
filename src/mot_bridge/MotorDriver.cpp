@@ -42,6 +42,8 @@ namespace motor_driver
     // and then enable the motor.
     setZeroPosition(enable_motor_ids);
 
+    std::cout <<"zero done"<<std::endl;
+
     motorState state;
     for (int motor_id : enable_motor_ids)
     {
@@ -146,13 +148,16 @@ namespace motor_driver
       //     state.\
             //                   Did you want to really do this?" << std::endl;
       // }
+      std::cout <<"zero sent"<<std::endl;
       motor_CAN_interface_.sendCANFrame(motor_id,
                                         default_msgs::motorSetZeroPositionMsg);
       usleep(motorReplyWaitTime);
+      std::cout <<"zero waitreceive"<<std::endl;
       if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
       {
         state = decodeCANFrame(CAN_reply_msg_);
         motor_state_map[motor_id] = state;
+        std::cout <<"zero waitreceive get info from id -"<<state.motor_id<<std::endl;
       }
       else
       {
@@ -198,7 +203,9 @@ namespace motor_driver
             //                   Did you want to really do this?" << std::endl;
       // }
       motor_CAN_interface_.sendCANFrame(cmd_motor_id, CAN_msg_);
+
       usleep(motorReplyWaitTime);
+      
       if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
       {
         state = decodeCANFrame(CAN_reply_msg_);
@@ -214,30 +221,6 @@ namespace motor_driver
     return motor_state_map;
   }
 
-  std::map<int, motorState> MotorDriver::sendDegreeCommand(
-      const std::map<int, motorCommand> &motor_deg_commands)
-  {
-    std::map<int, motorCommand> motor_rad_commands = motor_deg_commands;
-
-    for (auto &command_pair : motor_rad_commands)
-    {
-      command_pair.second.p_des *= (pi / 180);
-      command_pair.second.v_des *= (pi / 180);
-    }
-
-    std::map<int, motorState> motor_rad_state =
-        sendRadCommand(motor_rad_commands);
-    std::map<int, motorState> motor_deg_state;
-    for (std::pair<int, motorState> command_pair : motor_rad_state)
-    {
-      int motor_id = command_pair.first;
-      motorState rad_state = command_pair.second;
-      rad_state.position *= (180 / pi);
-      motor_deg_state[motor_id] = rad_state;
-    }
-
-    return motor_deg_state;
-  }
 
   const motorParams &MotorDriver::getMotorParams() const
   {

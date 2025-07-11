@@ -67,7 +67,7 @@ target_link_libraries(
 # --- Motor Bridge Executable ---
 add_executable(
     mot_bridge
-    ${SOURCE_DIR}/mot_bridge/MotorDriverTest.cpp
+    ${SOURCE_DIR}/mot_bridge/motor_group_test.cpp
     ${SOURCE_DIR}/mot_bridge/MotorDriver.cpp
     ${SOURCE_DIR}/mot_bridge/CANInterface.cpp
     ${SOURCE_DIR}/mot_bridge/motor_group.cpp

@@ -8,6 +8,8 @@
 
 #include <map>
 #include <vector>
+#include <thread>
+#include <chrono>
 
 #include "CANInterface.hpp"
 
@@ -65,8 +67,6 @@ namespace motor_driver
     std::map<int, motorState> setZeroPosition(
         const std::vector<int> &zero_motor_ids);
     std::map<int, motorState> sendRadCommand(const std::map<int, motorCommand> &);
-    std::map<int, motorState> sendDegreeCommand(
-        const std::map<int, motorCommand> &);
 
     const motorParams &getMotorParams() const;
     void setMotorParams(const motorParams &new_params);
