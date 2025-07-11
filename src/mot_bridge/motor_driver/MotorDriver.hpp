@@ -68,6 +68,9 @@ namespace motor_driver
         const std::vector<int> &zero_motor_ids);
     std::map<int, motorState> sendRadCommand(const std::map<int, motorCommand> &);
 
+    std::map<int, motorState> receive_frames(int num_frames_to_receive);
+    std::map<int, motorState> receive_frames_blocking(int num_frames_to_receive);
+
     const motorParams &getMotorParams() const;
     void setMotorParams(const motorParams &new_params);
 
