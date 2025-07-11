@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     double phase = 0.0;
     const double freq = 2.0;
     const double dt = 0.002;
-    const int N = 10000;
+    const int N = 2000;
     const double p2p = M_PI;
     auto dt_duration = std::chrono::microseconds(static_cast<long long>(dt * 1e6));
     auto next_cycle_time = std::chrono::steady_clock::now();
