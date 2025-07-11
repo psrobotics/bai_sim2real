@@ -1,4 +1,4 @@
-// main.cpp for dual CAN bus control
+// main.cpp for multi-threaded, dual CAN bus control
 
 #include <cassert>
 #include <cmath>
@@ -6,11 +6,56 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <chrono> // For high-precision timing
+#include <chrono>
+#include <mutex>
+#include <atomic>
 
 #include <rerun.hpp>
-
 #include "motor_driver/motor_group.hpp"
+
+// --- Shared data structures for thread communication ---
+struct MotorGroupControl {
+    std::mutex mtx;
+    std::vector<double> targets;
+    std::vector<double> tau_ff;
+};
+
+// --- Thread function for controlling a motor group ---
+void motor_control_thread(
+    motor_group& mg,
+    MotorGroupControl& control_data,
+    std::atomic<bool>& stop_token,
+    std::vector<bool>& motor_mask)
+{
+    while (!stop_token) {
+        std::vector<double> current_targets;
+        std::vector<double> current_tau_ff;
+
+        // Lock the mutex to safely copy the command data
+        {
+            std::lock_guard<std::mutex> lock(control_data.mtx);
+            current_targets = control_data.targets;
+            current_tau_ff = control_data.tau_ff;
+        }
+
+        // Send the command if there are targets
+        if (!current_targets.empty()) {
+            mg.set_pos_ctr(current_targets, current_tau_ff);
+        }
+        
+        // A small sleep to prevent this thread from busy-looping at 100% CPU
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+
+    // When stopping, send a zero command and disable motors
+    std::cout << "Thread stopping motors..." << std::endl;
+    std::vector<double> zero_pos(motor_mask.size(), 0.0);
+    std::vector<double> zero_tau(motor_mask.size(), 0.0);
+    mg.set_pos_ctr(zero_pos, zero_tau);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    mg.disable(motor_mask);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -20,126 +65,99 @@ int main(int argc, char **argv)
 
     // --- Bus 1 Setup (can0) ---
     const std::string can0_if = "can0";
-    std::vector<int> motor_ids_bus0 = {1, 2, 3}; // Motors on the first bus
-    const double default_kp_bus0 = 3.5;
-    const double default_kd_bus0 = 0.1;
-    std::vector<double> kps_bus0(motor_ids_bus0.size(), default_kp_bus0);
-    std::vector<double> kds_bus0(motor_ids_bus0.size(), default_kd_bus0);
+    std::vector<int> motor_ids_bus0 = {1, 2, 3};
+    std::vector<double> kps_bus0(motor_ids_bus0.size(), 3.5);
+    std::vector<double> kds_bus0(motor_ids_bus0.size(), 0.1);
     std::vector<bool> all_on_bus0(motor_ids_bus0.size(), true);
-
-    // Instantiate and init motor group for can0
-    motor_group mg0(motor_ids_bus0, can0_if, kps_bus0, kds_bus0, motor_driver::MotorType::AK80_6_V1p1);
+    motor_group mg0(motor_ids_bus0, can0_if, kps_bus0, kds_bus0);
     std::cout << "Initializing motor group on " << can0_if << std::endl;
     mg0.init();
 
-
     // --- Bus 2 Setup (can1) ---
     const std::string can1_if = "can1";
-    std::vector<int> motor_ids_bus1 = {4, 5, 6}; // Motors on the second bus
-    const double default_kp_bus1 = 3.5;
-    const double default_kd_bus1 = 0.1;
-    std::vector<double> kps_bus1(motor_ids_bus1.size(), default_kp_bus1);
-    std::vector<double> kds_bus1(motor_ids_bus1.size(), default_kd_bus1);
+    std::vector<int> motor_ids_bus1 = {4, 5, 6};
+    std::vector<double> kps_bus1(motor_ids_bus1.size(), 3.5);
+    std::vector<double> kds_bus1(motor_ids_bus1.size(), 0.1);
     std::vector<bool> all_on_bus1(motor_ids_bus1.size(), true);
-
-    // Instantiate and init motor group for can1
-    motor_group mg1(motor_ids_bus1, can1_if, kps_bus1, kds_bus1, motor_driver::MotorType::AK80_6_V1p1);
+    motor_group mg1(motor_ids_bus1, can1_if, kps_bus1, kds_bus1);
     std::cout << "Initializing motor group on " << can1_if << std::endl;
     mg1.init();
 
-
     // --- Enable and Zero Both Groups ---
-    std::cout << "Enabling motors... g0" << std::endl;
+    std::cout << "Enabling motors..." << std::endl;
     mg0.enable(all_on_bus0);
-    std::cout << "Enabling motors... g1" << std::endl;
     mg1.enable(all_on_bus1);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
     std::cout << "Setting new zero..." << std::endl;
     mg0.zero(all_on_bus0);
     mg1.zero(all_on_bus1);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
+    // --- Setup Threads ---
+    MotorGroupControl control0, control1;
+    std::atomic<bool> stop_token(false);
+
+    std::cout << "Spawning control threads..." << std::endl;
+    std::thread thread0(motor_control_thread, std::ref(mg0), std::ref(control0), std::ref(stop_token), std::ref(all_on_bus0));
+    std::thread thread1(motor_control_thread, std::ref(mg1), std::ref(control1), std::ref(stop_token), std::ref(all_on_bus1));
+    
     std::cout << "Starting sine wave test on both buses..." << std::endl;
 
-    // --- Sine-wave test ---
+    // --- Main Loop ---
     double phase = 0.0;
-    const double freq = 4.0; // Hz
-    const double dt = 0.01; // loop period (10ms -> 100Hz)
-    const int N = 10000;   // number of steps
+    const double freq = 2.0;
+    const double dt = 0.002;
+    const int N = 10000;
     const double p2p = M_PI;
-
-    // Convert the double dt (in seconds) to a chrono duration object that is compatible with the clock.
     auto dt_duration = std::chrono::microseconds(static_cast<long long>(dt * 1e6));
     auto next_cycle_time = std::chrono::steady_clock::now();
 
     for (int i = 0; i < N; ++i)
     {
-        // Increment the next cycle time by the fixed duration
         next_cycle_time += dt_duration;
         rec.set_time_sequence("step", i);
-
         phase += 2 * M_PI * freq * dt;
 
-        // --- Command Generation for Bus 0 ---
-        std::vector<double> targets0;
-        targets0.reserve(motor_ids_bus0.size());
-        for (size_t j = 0; j < motor_ids_bus0.size(); ++j)
+        // --- Update Shared Commands (protected by mutex) ---
         {
-            targets0.push_back(std::sin(phase + j * 0.2) * p2p);
-        }
-        std::vector<double> tau_ff0(motor_ids_bus0.size(), 0.0);
-        mg0.set_pos_ctr(targets0, tau_ff0);
-
-        // --- Command Generation for Bus 1 ---
-        std::vector<double> targets1;
-        targets1.reserve(motor_ids_bus1.size());
-        for (size_t j = 0; j < motor_ids_bus1.size(); ++j)
-        {
-            // Use a different phase shift for the second group for visual distinction
-            targets1.push_back(std::sin(phase + j * 0.2) * p2p);
-        }
-        std::vector<double> tau_ff1(motor_ids_bus1.size(), 0.0);
-        mg1.set_pos_ctr(targets1, tau_ff1);
-
-
-        // --- Logging to Rerun (optional) ---
-        if (i % 10 == 0)
-        {
-            // Log data from bus 0
-            auto qs0 = mg0.read_q();
-            for (size_t j = 0; j < qs0.size(); ++j)
-            {
-                std::string motor_id_str = "motor_" + std::to_string(motor_ids_bus0[j]);
-                rec.log("q/" + motor_id_str, rerun::Scalar(qs0[j]));
+            std::lock_guard<std::mutex> lock(control0.mtx);
+            control0.targets.assign(motor_ids_bus0.size(), 0.0);
+            control0.tau_ff.assign(motor_ids_bus0.size(), 0.0);
+            for (size_t j = 0; j < motor_ids_bus0.size(); ++j) {
+                control0.targets[j] = std::sin(phase + j * 0.2) * p2p;
             }
+        }
+        {
+            std::lock_guard<std::mutex> lock(control1.mtx);
+            control1.targets.assign(motor_ids_bus1.size(), 0.0);
+            control1.tau_ff.assign(motor_ids_bus1.size(), 0.0);
+            for (size_t j = 0; j < motor_ids_bus1.size(); ++j) {
+                // Using the same command for direct comparison
+                control1.targets[j] = std::sin(phase + j * 0.2) * p2p;
+            }
+        }
 
-            // Log data from bus 1
+        // --- Logging (reads from the motor_group's internal state) ---
+        if (i % 10 == 0) {
+            auto qs0 = mg0.read_q();
             auto qs1 = mg1.read_q();
-            for (size_t j = 0; j < qs1.size(); ++j)
-            {
-                std::string motor_id_str = "motor_" + std::to_string(motor_ids_bus1[j]);
-                rec.log("q/" + motor_id_str, rerun::Scalar(qs1[j]));
+            for (size_t j = 0; j < qs0.size(); ++j) {
+                rec.log("q/motor_" + std::to_string(motor_ids_bus0[j]), rerun::Scalar(qs0[j]));
+            }
+            for (size_t j = 0; j < qs1.size(); ++j) {
+                rec.log("q/motor_" + std::to_string(motor_ids_bus1[j]), rerun::Scalar(qs1[j]));
             }
         }
 
         std::this_thread::sleep_until(next_cycle_time);
     }
 
-    // --- Stop and Disable Both Groups ---
-    std::cout << "Stopping motors..." << std::endl;
-    std::vector<double> zero_pos0(motor_ids_bus0.size(), 0.0);
-    std::vector<double> zero_tau0(motor_ids_bus0.size(), 0.0);
-    mg0.set_pos_ctr(zero_pos0, zero_tau0);
+    // --- Stop and Cleanup Threads ---
+    std::cout << "Stopping control threads..." << std::endl;
+    stop_token = true;
+    thread0.join();
+    thread1.join();
 
-    std::vector<double> zero_pos1(motor_ids_bus1.size(), 0.0);
-    std::vector<double> zero_tau1(motor_ids_bus1.size(), 0.0);
-    mg1.set_pos_ctr(zero_pos1, zero_tau1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    std::cout << "Disabling motors..." << std::endl;
-    mg0.disable(all_on_bus0);
-    mg1.disable(all_on_bus1);
-
+    std::cout << "Main thread finished." << std::endl;
     return 0;
 }
