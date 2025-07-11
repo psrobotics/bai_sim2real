@@ -30,169 +30,197 @@ namespace motor_driver
       is_motor_enabled_[motor_id] = false;
   }
 
-  // Receive multiple frames with a timeout, nonblocking
-  std::map<int, motorState> MotorDriver::receive_frames(int num_frames_to_receive)
+  std::map<int, motorState> MotorDriver::enableMotor(
+      const std::vector<int> &enable_motor_ids)
   {
     std::map<int, motorState> motor_state_map;
-    auto start_time = std::chrono::steady_clock::now();
-    const auto timeout = std::chrono::milliseconds(5); // 5ms timeout
 
-    while (motor_state_map.size() < num_frames_to_receive)
+    // Bugfix: To remove the initial kick at motor start.
+    // The current working theory is that the motor is not
+    // set to zero position when enabled. Hence the
+    // last command is executed. So we set zero position
+    // and then enable the motor.
+    setZeroPosition(enable_motor_ids);
+
+    std::cout <<"zero done"<<std::endl;
+
+    motorState state;
+    for (int motor_id : enable_motor_ids)
     {
+      // TODO: Add check that enable motor id is in initialized motor_ids_ vector
+      // using std::find
+      motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorEnableMsg);
+      usleep(motorReplyWaitTime);
       if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
       {
-        motorState state = decodeCANFrame(CAN_reply_msg_);
-        motor_state_map[state.motor_id] = state;
+        state = decodeCANFrame(CAN_reply_msg_);
+        is_motor_enabled_[motor_id] = true;
+      }
+      else
+      {
+        perror("MotorDriver::enableMotor() Unable to Receive CAN Reply.");
       }
 
-      // Check for timeout
-      auto current_time = std::chrono::steady_clock::now();
-      if (current_time - start_time > timeout)
+      if (motor_id != state.motor_id)
+        perror(
+            "MotorDriver::enableMotor() Received message does not have the same "
+            "motor id!!");
+
+      motor_state_map[motor_id] = state;
+    }
+    return motor_state_map;
+  }
+
+  std::map<int, motorState> MotorDriver::disableMotor(
+      const std::vector<int> &disable_motor_ids)
+  {
+    std::map<int, motorState> motor_state_map;
+
+    motorState state;
+    for (int motor_id : disable_motor_ids)
+    {
+      // TODO: Add check that enable motor id is in initialized motor_ids_ vector
+      // using std::find.
+      // TODO: Enable enabled check better across multiple objects of this class.
+      // if (is_motor_enabled_[disable_motor_ids[iterId]])
+      // {
+      //     std::cout << "MotorDriver::disableMotor() Motor seems to already be
+      //     in disabled state. \
+            //                   Did you want to really do this?" << std::endl;
+      // }
+
+      // Bugfix: To remove the initial kick at motor start.
+      // The current working theory is that the motor "remembers" the last
+      // command. And this causes an initial kick as the motor controller starts.
+      // The fix is then to set the last command to zero so that this does not
+      // happen. For the user, the behaviour does not change as zero command +
+      // disable is same as disable.
+      encodeCANFrame(default_msgs::zeroCmdStruct, CAN_msg_);
+      motor_CAN_interface_.sendCANFrame(motor_id, CAN_msg_);
+      usleep(motorReplyWaitTime);
+
+      if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
       {
-        //perror("MotorDriver::receive_frames() - Timeout reached. Not all frames received.");
-        break;
+        state = decodeCANFrame(CAN_reply_msg_);
+      }
+      else
+      {
+        perror("MotorDriver::disableMotor() Unable to Receive CAN Reply.");
+      }
+
+      // Do the actual disabling after zero command.
+      motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorDisableMsg);
+      usleep(motorReplyWaitTime);
+      if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
+      {
+        state = decodeCANFrame(CAN_reply_msg_);
+        is_motor_enabled_[motor_id] = false;
+      }
+      else
+      {
+        perror("MotorDriver::disableMotor() Unable to Receive CAN Reply.");
+      }
+
+      if (motor_id != state.motor_id)
+        perror(
+            "MotorDriver::disableMotor() Received message does not have the same "
+            "motor id!!");
+
+      motor_state_map[motor_id] = state;
+    }
+    return motor_state_map;
+  }
+
+  std::map<int, motorState> MotorDriver::setZeroPosition(
+      const std::vector<int> &zero_motor_ids)
+  {
+    std::map<int, motorState> motor_state_map;
+
+    motorState state;
+    for (int motor_id : zero_motor_ids)
+    {
+      // TODO: Add check that enable motor id is in initialized motor_ids_ vector
+      // using std::find
+      // TODO: Enable enabled check better across multiple objects of this class.
+      // if (is_motor_enabled_[motor_id])
+      // {
+      //     std::cout << "MotorDriver::setZeroPosition() Motor in disabled
+      //     state.\
+            //                   Did you want to really do this?" << std::endl;
+      // }
+      std::cout <<"zero sent"<<std::endl;
+      motor_CAN_interface_.sendCANFrame(motor_id,
+                                        default_msgs::motorSetZeroPositionMsg);
+      usleep(motorReplyWaitTime);
+      std::cout <<"zero waitreceive"<<std::endl;
+      if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
+      {
+        state = decodeCANFrame(CAN_reply_msg_);
+        motor_state_map[motor_id] = state;
+        std::cout <<"zero waitreceive get info from id -"<<state.motor_id<<std::endl;
+      }
+      else
+      {
+        perror("MotorDriver::setZeroPosition() Unable to Receive CAN Reply.");
+      }
+
+      while (state.position > (1 * (pi / 180)))
+      {
+        motor_CAN_interface_.sendCANFrame(motor_id,
+                                          default_msgs::motorSetZeroPositionMsg);
+        usleep(motorReplyWaitTime);
+        if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
+        {
+          state = decodeCANFrame(CAN_reply_msg_);
+          motor_state_map[motor_id] = state;
+        }
+        else
+        {
+          perror("MotorDriver::setZeroPosition() Unable to Receive CAN Reply.");
+        }
       }
     }
     return motor_state_map;
   }
 
-  // Helper function for blocking setup/teardown functions
-  std::map<int, motorState> MotorDriver::receive_frames_blocking(int num_frames_to_receive)
-  {
-      std::map<int, motorState> motor_state_map;
-      auto start_time = std::chrono::steady_clock::now();
-      // Use a very long timeout as a safety measure to prevent infinite loops if a motor is disconnected.
-      const auto safety_timeout = std::chrono::microseconds(300);
-
-      while (motor_state_map.size() < num_frames_to_receive)
-      {
-          if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
-          {
-              motorState state = decodeCANFrame(CAN_reply_msg_);
-              motor_state_map[state.motor_id] = state;
-          }
-
-          // Safety timeout check
-          if (std::chrono::steady_clock::now() - start_time > safety_timeout)
-          {
-              std::cerr << "MotorDriver::receive_frames_blocking() - SAFETY TIMEOUT REACHED. Received "
-                        << motor_state_map.size() << "/" << num_frames_to_receive << " frames." << std::endl;
-              break;
-          }
-      }
-      return motor_state_map;
-  }
-
-  std::map<int, motorState> MotorDriver::enableMotor(
-      const std::vector<int> &enable_motor_ids)
-  {
-      for (int motor_id : enable_motor_ids)
-      {
-          motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorEnableMsg);
-          usleep(motorReplyWaitTime);
-      }
-      // Use the blocking receive function
-      auto states = receive_frames_blocking(enable_motor_ids.size());
-      for(auto const& [id, val] : states) {
-          is_motor_enabled_[id] = true;
-      }
-      return states;
-  }
-
-  std::map<int, motorState> MotorDriver::disableMotor(
-      const std::vector<int> &disable_motor_ids)
-  {
-      for (int motor_id : disable_motor_ids)
-      {
-          encodeCANFrame(default_msgs::zeroCmdStruct, CAN_msg_);
-          motor_CAN_interface_.sendCANFrame(motor_id, CAN_msg_);
-          usleep(motorReplyWaitTime);
-      }
-      for (int motor_id : disable_motor_ids)
-      {
-          motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorDisableMsg);
-      }
-      
-      // We expect 2 replies per motor; use the blocking receive function
-      auto states = receive_frames_blocking(disable_motor_ids.size() * 2);
-      for(auto const& [id, val] : states) {
-          is_motor_enabled_[id] = false;
-      }
-      return states;
-  }
-
-  std::map<int, motorState> MotorDriver::setZeroPosition(
-      const std::vector<int> &zero_motor_ids)
-  {
-      for (int motor_id : zero_motor_ids)
-      {
-          motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorSetZeroPositionMsg);
-          usleep(motorReplyWaitTime);
-      }
-      // Use the blocking receive function
-      return receive_frames_blocking(zero_motor_ids.size());
-  }
-  /*
-  std::map<int, motorState> MotorDriver::enableMotor(
-      const std::vector<int> &enable_motor_ids)
-  {
-    for (int motor_id : enable_motor_ids)
-    {
-      motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorEnableMsg);
-    }
-    auto states = receive_frames(enable_motor_ids.size());
-    for (auto const &[id, val] : states)
-    {
-      is_motor_enabled_[id] = true;
-    }
-    return states;
-  }
-
-  std::map<int, motorState> MotorDriver::disableMotor(
-      const std::vector<int> &disable_motor_ids)
-  {
-    for (int motor_id : disable_motor_ids)
-    {
-      encodeCANFrame(default_msgs::zeroCmdStruct, CAN_msg_);
-      motor_CAN_interface_.sendCANFrame(motor_id, CAN_msg_);
-    }
-    for (int motor_id : disable_motor_ids)
-    {
-      motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorDisableMsg);
-    }
-
-    // We expect 2 replies per motor
-    auto states = receive_frames(disable_motor_ids.size() * 2);
-    for (auto const &[id, val] : states)
-    {
-      is_motor_enabled_[id] = false;
-    }
-    return states;
-  }
-
-  std::map<int, motorState> MotorDriver::setZeroPosition(
-      const std::vector<int> &zero_motor_ids)
-  {
-    for (int motor_id : zero_motor_ids)
-    {
-      motor_CAN_interface_.sendCANFrame(motor_id, default_msgs::motorSetZeroPositionMsg);
-    }
-    return receive_frames(zero_motor_ids.size());
-  }
-  */
-
+  // Bugfix, 0707, local state not casted into statemap when return
   std::map<int, motorState> MotorDriver::sendRadCommand(
       const std::map<int, motorCommand> &motor_rad_commands)
   {
-    for (const auto &command_pair : motor_rad_commands)
+    motorState state;
+    std::map<int, motorState> motor_state_map;
+
+    for (const std::pair<int, motorCommand> &command_pair : motor_rad_commands)
     {
       int cmd_motor_id = command_pair.first;
       const motorCommand &cmd_to_send = command_pair.second;
+
       encodeCANFrame(cmd_to_send, this->CAN_msg_);
+      // TODO: Enable enabled check better across multiple objects of this class.
+      // if (is_motor_enabled_[cmd_motor_id])
+      // {
+      //     std::cout << "MotorDriver::sendRadCommand() Motor in disabled state.\
+            //                   Did you want to really do this?" << std::endl;
+      // }
       motor_CAN_interface_.sendCANFrame(cmd_motor_id, CAN_msg_);
+
+      usleep(motorReplyWaitTime);
+      
+      if (motor_CAN_interface_.receiveCANFrame(CAN_reply_msg_))
+      {
+        state = decodeCANFrame(CAN_reply_msg_);
+        // Pass through the returned state
+        motor_state_map[state.motor_id] = state;
+      }
+      else
+      {
+        perror("MotorDriver::sendRadCommand() Unable to Receive CAN Reply.");
+      }
     }
-    return receive_frames(motor_rad_commands.size());
+
+    return motor_state_map;
   }
+
 
   const motorParams &MotorDriver::getMotorParams() const
   {
