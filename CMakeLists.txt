@@ -46,6 +46,7 @@ include (GNUInstallDirs)
 include_directories(
     ${PROJECT_SOURCE_DIR}/imu_bridge
     ${PROJECT_SOURCE_DIR}/mot_bridge
+    ${PROJECT_SOURCE_DIR}/utils
 )
 
 # --- IMU Bridge Executable ---
@@ -64,10 +65,28 @@ target_link_libraries(
     ${LCM_NAMESPACE}lcm
 )
 
+# --- IMU Bridge RT Executable ---
+add_executable(
+    rt_imu_bridge
+    ${SOURCE_DIR}/imu_bridge/imu_bridge_rt.cpp
+    ${SOURCE_DIR}/imu_bridge/vofa_reader_sg.cpp
+)
+target_include_directories(
+    rt_imu_bridge
+    PRIVATE ${SOURCE_DIR}/imu_bridge
+    PRIVATE ${SOURCE_DIR}/utils
+)
+target_link_libraries(
+    rt_imu_bridge PRIVATE
+    Threads::Threads
+    ${LCM_NAMESPACE}lcm
+)
+
+
 # --- Motor Bridge Executable ---
 add_executable(
     mot_bridge
-    ${SOURCE_DIR}/mot_bridge/motor_group_test.cpp
+    ${SOURCE_DIR}/mot_bridge/motor_group_rt.cpp
     ${SOURCE_DIR}/mot_bridge/MotorDriver.cpp
     ${SOURCE_DIR}/mot_bridge/CANInterface.cpp
     ${SOURCE_DIR}/mot_bridge/motor_group.cpp
@@ -75,6 +94,7 @@ add_executable(
 target_include_directories(
     mot_bridge
     PRIVATE ${SOURCE_DIR}/mot_bridge
+    PRIVATE ${SOURCE_DIR}/utils
 )
 target_link_libraries(
     mot_bridge PRIVATE

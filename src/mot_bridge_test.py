@@ -36,17 +36,17 @@ class LcmTester:
         
         # --- Sine-wave parameters ---
         phase = 0.0
-        freq = 1  # Hz
+        freq = 2.5  # Hz
         dt = 0.002  # Loop period (500 Hz)
-        p2p = np.pi # Peak-to-peak amplitude
+        p2p = np.pi*3 # Peak-to-peak amplitude
         num_motors = 6
 
         # Create a reusable command message object
         cmd_msg = mot_cmd()
         cmd_msg.dq = [0.0] * num_motors
         cmd_msg.tau = [0.0] * num_motors
-        cmd_msg.kp_tar = 3.5  # Set a default Kp
-        cmd_msg.kd_tar = 0.1  # Set a default Kd
+        cmd_msg.kp_tar = 5/20.0  # Set a default Kp
+        cmd_msg.kd_tar = 0.0  # Set a default Kd
         cmd_msg.is_enable = True
 
         loop_count = 0
@@ -63,8 +63,9 @@ class LcmTester:
                 # --- Calculate new sine-wave targets ---
                 phase += 2 * np.pi * freq * dt
                 targets = np.zeros(num_motors)
-                for i in range(num_motors):
-                    targets[i] = np.sin(phase + i * 0.2) * p2p
+                #for i in range(num_motors):
+                targets[0] = np.sin(phase) * p2p
+                targets[5] = -1*np.sin(phase) * p2p
                 
                 # --- Populate and publish the command message ---
                 cmd_msg.timestamp = int(time.time() * 1e6)
@@ -72,7 +73,7 @@ class LcmTester:
                 self.lc.publish("MOT_CMD", cmd_msg.encode())
 
                 # --- Print feedback every 50 cycles ---
-                if loop_count % 50 == 0:
+                if loop_count % 5 == 0:
                     print(f"--- Loop {loop_count} ---")
                     print(f"Published q_target[0]: {targets[0]:.4f}")
                     if self.last_state_msg:
