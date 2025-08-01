@@ -62,7 +62,7 @@ class OnnxController:
 
     # --- LCM setup ---
     self.lc = lcm.LCM()
-    self.imu_sub = self.lc.subscribe("IMU_CMD", self.lcm_imu_handle)
+    self.imu_sub = self.lc.subscribe("IMU_STATE", self.lcm_imu_handle)
     
 
 # LCM handles

@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     const std::string port = "/dev/ttyACM0";
     speed_t baud = B921600;
     int hz = 200;
-    std::string lcm_topic = "IMU_CMD";
+    std::string lcm_topic = "IMU_STATE";
 
     vofa_reader reader(port, lcm_topic, baud,
                        /*timeout_ms=*/500);
