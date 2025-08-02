@@ -1,0 +1,186 @@
+<mujoco model="bai feet only">
+    <compiler angle="radian" meshdir="./meshes/" />
+
+    <option iterations="3" ls_iterations="5" timestep="0.002" integrator="Euler">
+        <flag eulerdamp="disable" />
+    </option>
+    
+
+    <default>
+        <default class="humanoid">
+
+            <geom condim="1" contype="0" conaffinity="0" />
+            <site size="0.01" rgba="1 0 0 1" group="4" />
+            <joint axis="0 0 1" damping="1.5" />
+
+            <position inheritrange="1.0" kp="2" />
+            <default class="mad_mot">
+                <joint actuatorfrcrange="-1.5 1.5" range="-1.7 1.7" armature="0.01"
+                    frictionloss="0.05" damping="0.2" />
+            </default>
+
+            <default class="imu">
+                <site type="box" size="0.1 0.1 0.1" rgba="1 0 0 0" />
+            </default>
+
+            <default class="visual">
+                <geom type="mesh" density="0" group="2" material="metal" contype="0" conaffinity="0" />
+            </default>
+
+            <default class="collision">
+                <default class="foot1">
+                    <geom pos="0.076 -0.0025 0.0" type="sphere" size="0.02" contype="1"
+                        conaffinity="1"/>
+                </default>
+            </default>
+
+        </default>
+    </default>
+
+    <asset>
+        <material name="metal" rgba=".9 .9 .9 1.0" />
+
+        <mesh name="hip" file="hip.stl" scale="0.001 0.001 0.001" />
+        <mesh name="hip2hip_l" file="hip2hip_l.stl" scale="0.001 0.001 0.001" />
+        <mesh name="hip2hip_r" file="hip2hip_r.stl" scale="0.001 0.001 0.001" />
+        <mesh name="leg_up_l" file="leg_up_r.stl" scale="0.001 0.001 0.001" />
+        <mesh name="leg_up_r" file="leg_up_l.stl" scale="0.001 0.001 0.001" />
+        <mesh name="leg_low_l" file="leg_low_r.stl" scale="0.001 0.001 0.001" />
+        <mesh name="leg_low_r" file="leg_low_l.stl" scale="0.001 0.001 0.001" />
+    </asset>
+
+    <worldbody>
+
+        <body name="torso" pos="0 0 0.32">
+
+            <freejoint name="root" />
+            <site name="root" class="imu" />
+
+            <camera name="front" pos="1.210 -0.435 0.32"
+                xyaxes="0.342 0.940 0.000 -0.321 0.117 0.940" mode="trackcom" />
+            <camera name="track" pos="0.805 -1.105 0.2"
+                xyaxes="0.814 0.580 0.000 -0.140 0.196 0.971" mode="trackcom" />
+
+            <geom name="hip_geom" mesh="hip" class="visual" />
+            <!--mass="0.5599909578441048"-->
+            <inertial mass="1.4"
+                pos="0.0015351925861516991 4.767299120048889e-05 -0.006880794396197332"
+                fullinertia="0.0017110765361655605 0.0016064105565782095 0.0008954959589560794 -2.6811250707348453e-07 -3.130115213231984e-05 -1.0000490802169115e-06" />
+
+            <body name="hip2hip_l"
+                pos="-0.03499999999999949 -0.03326190813452122 -0.08735435694813813"
+                euler="0.6108652381979756 -5.551115123125783e-17 -1.5707963267949936">
+                <joint name="HIP_L" class="mad_mot"
+                    axis="0.9999997134399039 9.701728465039139e-14 3.3203468957632154e-07"
+                    pos="-0.0029998250592675564 0.0349999999999992 0.01350021410319177" />
+                <geom name="hip2hip_l_geom" mesh="hip2hip_l" class="visual" />
+                <inertial mass="0.02023294509563117"
+                    pos="0.011950545672977712 0.012220933952663025 0.013499999980229022"
+                    fullinertia="5.229122779869103e-06 5.2098186772452384e-06 7.74856271789748e-06 2.349624564719503e-06 -2.0660213550540135e-15 1.4381475949899226e-15" />
+
+                <body name="leg_up_l"
+                    pos="0.036000801480799885 0.03299999999999999 -0.009858962575867417"
+                    euler="-1.5707963267948966 -1.262177448353619e-29 0.9599310885968813">
+                    <joint name="AB_L" class="mad_mot"
+                        axis="5.567768468495477e-14 -7.945033519973554e-14 -1.0"
+                        pos="-0.01913455771586603 -0.013397830356822966 -0.027999999999997003" />
+                    <geom name="leg_up_l_geom" mesh="leg_up_l" class="visual" />
+                    <inertial mass="0.32195369176294947"
+                        pos="0.04086501939444659 -0.013098574259669146 -0.0027988872617928954"
+                        fullinertia="0.00011054008727743353 0.0007440844363469227 0.0007440847475586696 -2.211379187056728e-05 -2.2113854825197416e-05 -5.051599018956193e-07" />
+
+                    <body name="leg_low_l"
+                        pos="0.16816041310893412 0.0023172787148023756 -0.0007496109597833634"
+                        euler="9.083642928744187e-16 1.262177448353619e-29 5.354681344791019e-14">
+                        <joint name="KNEE_L" class="mad_mot"
+                            axis="1.3703684651683712e-14 1.0 -8.035869949261218e-14"
+                            pos="-0.0672949708248024 -0.015415109071614934 -0.0017503890402069712" />
+                        <geom name="leg_low_l_geom" mesh="leg_low_l" class="visual" />
+                        <inertial mass="0.04999999867383982"
+                            pos="0.03559579299562683 -0.0020088290678523793 -0.0007700942584947029"
+                            fullinertia="8.369333871045188e-06 0.00012032878067472477 0.00012033698375904847 1.8014786451539018e-06 -7.359570929761405e-07 1.5468266555758036e-07" />
+
+                        <geom name="l_toe_contact" class="foot1" />
+                        <site name="l_toe" class="imu" />
+                    </body>
+
+                </body>
+            </body>
+
+            <body name="hip2hip_r"
+                pos="-0.0350000000000001 0.04874847191600496 -0.06523725175233486"
+                euler="2.5307274153918455 5.551115123125783e-17 -1.5707963267949068">
+                <joint name="HIP_R" class="mad_mot"
+                    axis="0.9999997134399037 1.0223100588291345e-14 -3.3203466176523477e-07"
+                    pos="-0.002999825059270182 0.035000000000000066 0.013499785896811708" />
+                <geom name="hip2hip_r_geom" mesh="hip2hip_r" class="visual" />
+                <inertial mass="0.02023294509563117"
+                    pos="0.011950545672977719 0.01222093395266302 0.013499999980229025"
+                    fullinertia="5.229122779869088e-06 5.2098186772452876e-06 7.748562717897455e-06 2.3496245647195025e-06 -2.0660289783505387e-15 1.438157335868816e-15" />
+
+                <body name="leg_up_r"
+                    pos="0.045129002342899335 0.030850000000000006 0.034792522795209176"
+                    euler="1.5707963267948966 5.654498162242479e-17 0.9599310885968815">
+                    <joint name="AB_R" class="mad_mot"
+                        axis="5.773159728051388e-15 -8.368666310464161e-15 1.0"
+                        pos="-0.02267755026591856 -0.00473518479462277 0.02584999999999953" />
+                    <geom name="leg_up_r_geom" mesh="leg_up_r" class="visual" />
+                    <inertial mass="0.3219526329022256"
+                        pos="0.03732199932408756 -0.004413611892113789 0.0006712489367162474"
+                        fullinertia="0.00011053065651834393 0.0007440819960798256 0.0007440818593791498 -2.1778323843211403e-05 2.1778375867577897e-05 7.269878168383516e-07" />
+
+                    <body name="leg_low_r"
+                        pos="0.16461742055888104 0.005350378894421271 -0.001400389040218044"
+                        euler="-3.1415926535897922 2.3665827156630393e-30 -3.460718840848811e-14">
+                        <joint name="KNEE_R" class="mad_mot"
+                            axis="-3.282534281203466e-14 -1.0 -7.57325775886575e-15"
+                            pos="-0.06729497082479993 0.010585563689033408 -0.0017503890402168789" />
+                        <geom name="leg_low_r" mesh="leg_low_r" class="visual" />
+                        <inertial mass="0.050000000115828724"
+                            pos="0.03559578998408479 -0.002820713166503176 -0.0007700942453970161"
+                            fullinertia="8.369334221102848e-06 0.0001203287963981891 0.00012033699986653245 -1.801498790014561e-06 -7.359570355203559e-07 -1.551591019319404e-07" />
+
+                        <geom name="r_toe_contact" class="foot1" />
+                        <site name="r_toe" class="imu" />
+                    </body>
+
+                </body>
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <position class="mad_mot" name="HIP_L" joint="HIP_L" />
+        <position class="mad_mot" name="AB_L" joint="AB_L" />
+        <position class="mad_mot" name="KNEE_L" joint="KNEE_L" />
+
+        <position class="mad_mot" name="HIP_R" joint="HIP_R" />
+        <position class="mad_mot" name="AB_R" joint="AB_R" />
+        <position class="mad_mot" name="KNEE_R" joint="KNEE_R" />
+    </actuator>
+
+    <sensor>
+        <!-- added sensors for mujoco playground-->
+        <gyro site="root" name="gyro" />
+        <velocimeter site="root" name="local_linvel" />
+        <accelerometer site="root" name="accelerometer" />
+        <framezaxis objtype="site" objname="root" name="upvector" />
+        <framexaxis objtype="site" objname="root" name="forwardvector" />
+        <framelinvel objtype="site" objname="root" name="global_linvel" />
+        <frameangvel objtype="site" objname="root" name="global_angvel" />
+        <framepos objtype="site" objname="root" name="position" />
+        <framequat objtype="site" objname="root" name="orientation" />
+
+        <framelinvel objtype="site" objname="l_toe" name="l_toe_global_linvel" />
+        <framelinvel objtype="site" objname="r_toe" name="r_toe_global_linvel" />
+        <framexaxis objtype="site" objname="l_toe" name="l_toe_upvector" />
+        <framexaxis objtype="site" objname="r_toe" name="r_toe_upvector" />
+
+        <framepos objtype="site" objname="l_toe" name="l_toe_pos" />
+        <framepos objtype="site" objname="r_toe" name="r_toe_pos" />
+
+        <force name="left_foot_force" site="l_toe" />
+        <force name="right_foot_force" site="r_toe" />
+    </sensor>
+
+</mujoco>
